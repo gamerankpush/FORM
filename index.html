@@ -3,71 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Start filling form</title>
+    <title>Google Form with Live Clock</title>
     <style>
-        /* Centered content */
-        .center {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            flex-direction: column;
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
         }
 
         .open-form-btn {
-            padding: 10px 20px;
+            padding: 12px 20px;
             font-size: 18px;
-            background: rgb(0, 0, 0);
+            background: blue;
             color: white;
             border: none;
             cursor: pointer;
             border-radius: 5px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Button to Open Google Form -->
-    <div class="center">
-        <button class="open-form-btn" onclick="openGoogleForm()">Open Google Form</button>
-    </div>
+    <h1>Google Form with Live Clock</h1>
+    <button class="open-form-btn" onclick="openGoogleForm()">Open Google Form</button>
+
+    <!-- Hidden video for PiP Timer (Mobile) -->
+    <video id="pip-video" width="300" height="150">
+        <track kind="captions">
+    </video>
 
     <script>
         function openGoogleForm() {
             // Open Google Form in a new tab
             window.open("https://docs.google.com/forms/d/e/1FAIpQLSe7ZsTQ2dibl-2Ff7yEMuhNDVnjlz6Jiw75RnJs9mzf0FWmCw/viewform", "_blank");
 
-            // Open a floating timer window
-            let timerWindow = window.open("", "Timer", "width=300,height=150");
+            if (window.innerWidth > 768) {
+                // **PC:** Open clock in a new floating window
+                openClockWindow();
+            } else {
+                // **Mobile:** Use Picture-in-Picture mode
+                startPiPTimer();
+            }
+        }
 
-            // Check if the window was blocked
-            if (!timerWindow || timerWindow.closed || typeof timerWindow.closed === "undefined") {
-                alert("Popup blocked! Please allow popups in your browser.");
+        // **PC:** Open Floating Window with Clock & Date
+        function openClockWindow() {
+            let clockWin = window.open("", "ClockWindow", "width=300,height=150");
+            if (!clockWin) {
+                alert("Popup blocked! Allow popups for this site.");
                 return;
             }
-            if (!timerWindow || timerWindow.closed || typeof timerWindow.closed === "undefined") {
-                alert("Popup blocked! Please allow popups in your browser.");
-                return;
-            }
-
-            // Write the clock UI inside the floating window
-            timerWindow.document.write(`
+            clockWin.document.write(`
                 <html>
                 <head>
                     <title>Live Clock</title>
                     <style>
                         body {
+                            font-family: Arial, sans-serif;
                             text-align: center;
                             font-size: 24px;
-                            font-family: Arial, sans-serif;
                             padding: 20px;
+                            background: black;
+                            color: white;
                         }
                     </style>
                 </head>
                 <body>
-                    <h3>Current Time:</h3>
+                    <p id="date"></p>
                     <p id="clock">Loading...</p>
-
                     <script>
                         function updateClock() {
                             let now = new Date();
@@ -77,20 +80,71 @@
                             let ampm = hours >= 12 ? 'PM' : 'AM';
 
                             hours = hours % 12;
-                            hours = hours ? hours : 12; // Convert 0 to 12
+                            hours = hours ? hours : 12;
                             minutes = minutes < 10 ? '0' + minutes : minutes;
                             seconds = seconds < 10 ? '0' + seconds : seconds;
 
                             let currentTime = hours + ':' + minutes + ':' + seconds + ' ' + ampm;
                             document.getElementById("clock").innerText = currentTime;
-                        }
 
+                            let dateStr = now.toDateString();
+                            document.getElementById("date").innerText = dateStr;
+                        }
                         setInterval(updateClock, 1000);
-                        updateClock(); // Run once at start
+                        updateClock();
                     <\/script>
                 </body>
                 </html>
             `);
+        }
+
+        // **Mobile:** Floating Timer in Picture-in-Picture (PiP) mode
+        function startPiPTimer() {
+            let video = document.getElementById("pip-video");
+
+            // Create a canvas to display the clock in PiP mode
+            let canvas = document.createElement("canvas");
+            canvas.width = 300;
+            canvas.height = 150;
+            let ctx = canvas.getContext("2d");
+
+            let stream = canvas.captureStream();
+            video.srcObject = stream;
+            video.play();
+
+            function updateCanvas() {
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "white";
+                ctx.font = "20px Arial";
+
+                let now = new Date();
+                let hours = now.getHours();
+                let minutes = now.getMinutes();
+                let seconds = now.getSeconds();
+                let ampm = hours >= 12 ? 'PM' : 'AM';
+
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+
+                let currentTime = hours + ":" + minutes + ":" + seconds + " " + ampm;
+                let dateStr = now.toDateString();
+
+                ctx.fillText(dateStr, 50, 40);
+                ctx.fillText(currentTime, 50, 80);
+
+                requestAnimationFrame(updateCanvas);
+            }
+            updateCanvas();
+
+            // Request Picture-in-Picture mode
+            video.requestPictureInPicture().catch(error => {
+                alert("PiP mode is not supported on this device.");
+                console.error(error);
+            });
         }
     </script>
 
